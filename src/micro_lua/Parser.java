@@ -356,26 +356,50 @@ public class Parser {
     }
 
     private Expr primary() {
+        // Literais básicos
         if (match(FALSE)) return new Expr.Literal(false);
         if (match(TRUE)) return new Expr.Literal(true);
         if (match(NIL)) return new Expr.Literal(null);
-        
-        if (match(NUMBER, STRING)) {
-            return new Expr.Literal(previous().literal);
+        if (match(NUMBER, STRING)) return new Expr.Literal(previous().literal);
+
+        // Função anônima
+        if (match(FUNCTION)) {
+            consume(LEFT_PAREN, "Expect '(' after 'function'.");
+            List<Token> params = new ArrayList<>();
+            if (!check(RIGHT_PAREN)) {
+                do {
+                    if (params.size() >= 255) {
+                        error(peek(), "Can't have more than 255 parameters.");
+                    }
+                    params.add(consume(IDENTIFIER, "Expect parameter name."));
+                } while (match(COMMA));
+            }
+            consume(RIGHT_PAREN, "Expect ')' after parameters.");
+            List<Stmt> body = block("function");
+            return new Expr.Literal(new Stmt.Function(
+                new Token(TokenType.IDENTIFIER, "", null, previous().line),
+                params,
+                body
+            ));
         }
-        
-        if (match(LEFT_BRACE)) {
-            return tableConstructor();
-        }
-        
-        if (match(IDENTIFIER)) {
-            return new Expr.Variable(previous());
-        }
-        
+
+        // Construtor de tabela
+        if (match(LEFT_BRACE)) return tableConstructor();
+
+        // Variável
+        if (match(IDENTIFIER)) return new Expr.Variable(previous());
+
+        // Expressão entre parênteses
         if (match(LEFT_PAREN)) {
             Expr expr = expression();
             consume(RIGHT_PAREN, "Expect ')' after expression.");
             return new Expr.Grouping(expr);
+        }
+
+        // Chamada de função prefixada com ::
+        if (match(COLON)) {
+            Token name = consume(IDENTIFIER, "Expect method name after ':'.");
+            return new Expr.Variable(name);
         }
 
         throw error(peek(), "Expect expression.");
@@ -409,11 +433,6 @@ public class Parser {
             consume(EQUAL, "Expect '=' after field name.");
             Expr value = expression();
             return new Expr.Field(new Expr.Literal(name.lexeme), value);
-        }
-        
-        if (peek().type == FUNCTION) {
-            Expr value = anonymousFunction();
-            return new Expr.Field(null, value);
         }
         
         Expr value = expression();

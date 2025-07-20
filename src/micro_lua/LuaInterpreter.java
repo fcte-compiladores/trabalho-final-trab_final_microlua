@@ -451,8 +451,12 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
 
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
-        if (expr.value instanceof String && ((String) expr.value).equals("{}")) {
+        if (expr.value instanceof String && ((String)expr.value).equals("{}")) {
             return new LuaTable();
+        }
+        if (expr.value instanceof Stmt.Function) {
+            Stmt.Function func = (Stmt.Function)expr.value;
+            return new LuaFunction(func, environment);
         }
         return expr.value;
     }

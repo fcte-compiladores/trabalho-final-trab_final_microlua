@@ -6,7 +6,7 @@ public class LuaFunction implements LuaCallable {
     private final Stmt.Function declaration;
     private final Environment closure;
     
-    LuaFunction(Stmt.Function declaration, Environment closure) {
+    public LuaFunction(Stmt.Function declaration, Environment closure) {
         this.declaration = declaration;
         this.closure = closure;
     }
@@ -19,6 +19,8 @@ public class LuaFunction implements LuaCallable {
     @Override
     public Object call(LuaInterpreter interpreter, List<Object> arguments) {
         Environment environment = new Environment(closure);
+        
+        // Registra os parâmetros no ambiente
         for (int i = 0; i < declaration.params.size(); i++) {
             environment.define(declaration.params.get(i).lexeme, arguments.get(i));
         }
@@ -33,6 +35,6 @@ public class LuaFunction implements LuaCallable {
 
     @Override
     public String toString() {
-        return "<fn " + declaration.name.lexeme + ">";
+        return "<fn " + (declaration.name != null ? declaration.name.lexeme : "anonymous") + ">";
     }
 }
