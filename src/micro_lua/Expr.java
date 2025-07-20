@@ -12,11 +12,13 @@ public abstract class Expr {
         R visitLogicalExpr(Logical expr);
         R visitUnaryExpr(Unary expr);
         R visitVariableExpr(Variable expr);
+        R visitTableExpr(Table expr);
+        R visitTableIndexExpr(TableIndex expr);
+        R visitTableFieldExpr(TableField expr);
     }
 
     public abstract <R> R accept(Visitor<R> visitor);
 
-    // 1. Atribuição (x = 10)
     public static class Assign extends Expr {
         public final Token name;
         public final Expr value;
@@ -32,7 +34,6 @@ public abstract class Expr {
         }
     }
 
-    // 2. Operação binária (1 + 2)
     public static class Binary extends Expr {
         public final Expr left;
         public final Token operator;
@@ -50,7 +51,6 @@ public abstract class Expr {
         }
     }
 
-    // 3. Chamada de função (funcao())
     public static class Call extends Expr {
         public final Expr callee;
         public final Token paren;
@@ -68,7 +68,6 @@ public abstract class Expr {
         }
     }
 
-    // 4. Literal (42, "texto", true, nil)
     public static class Literal extends Expr {
         public final Object value;
 
@@ -82,7 +81,6 @@ public abstract class Expr {
         }
     }
 
-    // 5. Agrupamento (1 + (2 * 3))
     public static class Grouping extends Expr {
         public final Expr expression;
 
@@ -96,7 +94,6 @@ public abstract class Expr {
         }
     }
 
-    // 6. Operadores lógicos (and/or)
     public static class Logical extends Expr {
         public final Expr left;
         public final Token operator;
@@ -114,7 +111,6 @@ public abstract class Expr {
         }
     }
 
-    // 7. Operador unário (-, not)
     public static class Unary extends Expr {
         public final Token operator;
         public final Expr right;
@@ -130,7 +126,6 @@ public abstract class Expr {
         }
     }
 
-    // 8. Referência a variável (x)
     public static class Variable extends Expr {
         public final Token name;
 
@@ -141,6 +136,63 @@ public abstract class Expr {
         @Override
         public <R> R accept(Visitor<R> visitor) {
             return visitor.visitVariableExpr(this);
+        }
+    }
+
+    public static class Table extends Expr {
+        public final Token brace;
+        public final List<Field> fields;
+
+        public Table(Token brace, List<Field> fields) {
+            this.brace = brace;
+            this.fields = fields;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> visitor) {
+            return visitor.visitTableExpr(this);
+        }
+    }
+
+    public static class Field {
+        public final Expr key;
+        public final Expr value;
+
+        public Field(Expr key, Expr value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    public static class TableIndex extends Expr {
+        public final Expr table;
+        public final Expr index;
+        public final Token bracket;
+
+        public TableIndex(Expr table, Expr index, Token bracket) {
+            this.table = table;
+            this.index = index;
+            this.bracket = bracket;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> visitor) {
+            return visitor.visitTableIndexExpr(this);
+        }
+    }
+
+    public static class TableField extends Expr {
+        public final Expr table;
+        public final Token field;
+
+        public TableField(Expr table, Token field) {
+            this.table = table;
+            this.field = field;
+        }
+
+        @Override
+        public <R> R accept(Visitor<R> visitor) {
+            return visitor.visitTableFieldExpr(this);
         }
     }
 }

@@ -84,7 +84,7 @@ public class Parser {
             initializer = expression();
         }
         
-        match(SEMICOLON); // Ponto e vírgula opcional
+        match(SEMICOLON);
         return new Stmt.LocalVar(name, initializer);
     }
 
@@ -132,7 +132,6 @@ public class Parser {
 
         consume(END, "Expect 'end' after if statement.");
 
-        // Construir if aninhado para elseif
         for (int i = elseifBranches.size() - 1; i >= 0; i--) {
             Stmt.If current = elseifBranches.get(i);
             if (elseBranch != null) {
@@ -333,6 +332,14 @@ public class Parser {
         while (true) {
             if (match(LEFT_PAREN)) {
                 expr = finishCall(expr);
+            } else if (match(LEFT_BRACKET)) {
+                Token bracket = previous();
+                Expr index = expression();
+                consume(RIGHT_BRACKET, "Expect ']' after index.");
+                expr = new Expr.TableIndex(expr, index, bracket);
+            } else if (match(DOT)) {
+                Token field = consume(IDENTIFIER, "Expect field name after '.'.");
+                expr = new Expr.TableField(expr, field);
             } else {
                 break;
             }
@@ -365,6 +372,10 @@ public class Parser {
             return new Expr.Literal(previous().literal);
         }
         
+        if (match(LEFT_BRACE)) {
+            return tableConstructor();
+        }
+        
         if (match(IDENTIFIER)) {
             return new Expr.Variable(previous());
         }
@@ -378,7 +389,47 @@ public class Parser {
         throw error(peek(), "Expect expression.");
     }
 
-    private boolean match(TokenType... types) {
+    private Expr tableConstructor() {
+        Token brace = previous();
+        List<Expr.Field> fields = new ArrayList<>();
+        
+        if (!check(RIGHT_BRACE)) {
+            do {
+                fields.add(tableField());
+            } while (match(COMMA, SEMICOLON));
+        }
+        
+        consume(RIGHT_BRACE, "Expect '}' after table elements.");
+        return new Expr.Table(brace, fields);
+    }
+
+    private Expr.Field tableField() {
+        if (match(LEFT_BRACKET)) {
+            Expr key = expression();
+            consume(RIGHT_BRACKET, "Expect ']' after table key.");
+            consume(EQUAL, "Expect '=' after table key.");
+            Expr value = expression();
+            return new Expr.Field(key, value);
+        }
+        
+        if (check(IDENTIFIER) && checkNext(EQUAL)) {
+            Token name = consume(IDENTIFIER, "Expect field name.");
+            consume(EQUAL, "Expect '=' after field name.");
+            Expr value = expression();
+            return new Expr.Field(new Expr.Literal(name.lexeme), value);
+        }
+        
+        Expr value = expression();
+        return new Expr.Field(null, value);
+    }
+
+    private boolean checkNext(TokenType type) {
+        if (isAtEnd()) return false;
+        if (current + 1 >= tokens.size()) return false;
+        return tokens.get(current + 1).type == type;
+    }
+
+	private boolean match(TokenType... types) {
         for (TokenType type : types) {
             if (check(type)) {
                 advance();

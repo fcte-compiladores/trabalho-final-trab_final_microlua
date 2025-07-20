@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> {
 
@@ -12,7 +13,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
     private final Map<Expr, Integer> locals = new HashMap<>();
 
     LuaInterpreter() {
-        // Função nativa print
         globals.define("print", new LuaCallable() {
             @Override
             public int arity() { return 1; }
@@ -24,7 +24,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
         });
         
-        // Função nativa clock
+        
         globals.define("clock", new LuaCallable() {
             @Override
             public int arity() { return 0; }
@@ -35,7 +35,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
         });
         
-        // Função nativa str
         globals.define("str", new LuaCallable() {
             @Override
             public int arity() { return 1; }
@@ -46,7 +45,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
         });
         
-        // Função nativa num
         globals.define("num", new LuaCallable() {
             @Override
             public int arity() { return 1; }
@@ -65,8 +63,33 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 throw new RuntimeError(null, "Cannot convert to number.");
             }
         });
+
+        globals.define("table", new LuaTable() {{
+            set("insert", new LuaCallable() {
+                @Override public int arity() { return 2; }
+                @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                    if (!(arguments.get(0) instanceof LuaTable)) {
+                        throw new RuntimeError(null, "First argument must be a table");
+                    }
+                    LuaTable table = (LuaTable) arguments.get(0);
+                    table.set(table.arrayPart.size() + 1, arguments.get(1));
+                    return null;
+                }
+            });
+            
+            set("remove", new LuaCallable() {
+                @Override public int arity() { return 1; }
+                @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                    if (!(arguments.get(0) instanceof LuaTable)) {
+                        throw new RuntimeError(null, "First argument must be a table");
+                    }
+                    LuaTable table = (LuaTable) arguments.get(0);
+                    if (table.arrayPart.isEmpty()) return null;
+                    return table.arrayPart.remove(table.arrayPart.size() - 1);
+                }
+            });
+        }});
         
-        // Função nativa type
         globals.define("type", new LuaCallable() {
             @Override
             public int arity() { return 1; }
@@ -79,9 +102,42 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 if (arg instanceof Double) return "number";
                 if (arg instanceof String) return "string";
                 if (arg instanceof LuaCallable) return "function";
+                if (arg instanceof LuaTable) return "table";
                 return "unknown";
             }
         });
+
+        LuaTable tableLib = new LuaTable();
+        tableLib.set("insert", new LuaCallable() {
+            @Override
+            public int arity() { return 2; }
+            
+            @Override
+            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                if (!(arguments.get(0) instanceof LuaTable)) {
+                    throw new RuntimeError(null, "First argument must be a table");
+                }
+                LuaTable table = (LuaTable) arguments.get(0);
+                table.set(table.elements.size() + 1, arguments.get(1));
+                return null;
+            }
+        });
+        
+        tableLib.set("remove", new LuaCallable() {
+            @Override
+            public int arity() { return 1; }
+            
+            @Override
+            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                if (!(arguments.get(0) instanceof LuaTable)) {
+                    throw new RuntimeError(null, "First argument must be a table");
+                }
+                LuaTable table = (LuaTable) arguments.get(0);
+                return table.elements.remove(table.elements.size());
+            }
+        });
+        
+        globals.define("table", tableLib);
     }
 
     void interpret(List<Stmt> statements) {
@@ -129,6 +185,11 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         }
     }
 
+
+    private String tableToString(LuaTable table) {
+        return table.toString();
+    }
+
     private String stringify(Object object) {
         if (object == null) return "nil";
         if (object instanceof Double) {
@@ -138,9 +199,14 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
             return text;
         }
+        if (object instanceof LuaTable) {
+            return tableToString((LuaTable) object);
+        }
+        if (object instanceof String) {
+            return (String) object;
+        }
         return object.toString();
     }
-
     private boolean isTruthy(Object object) {
         if (object == null) return false;
         if (object instanceof Boolean) return (boolean)object;
@@ -347,6 +413,9 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
 
     @Override
     public Object visitLiteralExpr(Expr.Literal expr) {
+        if (expr.value instanceof String && ((String) expr.value).equals("{}")) {
+            return new LuaTable();
+        }
         return expr.value;
     }
 
@@ -382,5 +451,54 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
     @Override
     public Object visitVariableExpr(Expr.Variable expr) {
         return lookUpVariable(expr.name, expr);
+    }
+
+
+    @Override
+    public Object visitTableIndexExpr(Expr.TableIndex expr) {
+        Object table = evaluate(expr.table);
+        Object index = evaluate(expr.index);
+        
+        if (table instanceof LuaTable) {
+            Object value = ((LuaTable) table).get(index);
+            if (value == null) {
+                throw new RuntimeError(expr.bracket, 
+                    "Undefined index '" + stringify(index) + "' in table");
+            }
+            return value;
+        }
+        
+        throw new RuntimeError(expr.bracket, 
+            "Attempt to index a non-table value (" + stringify(table) + ")");
+    }
+
+    @Override
+    public Object visitTableFieldExpr(Expr.TableField expr) {
+        Object table = evaluate(expr.table);
+        
+        if (table instanceof LuaTable) {
+            return ((LuaTable) table).get(expr.field.lexeme);
+        }
+        
+        throw new RuntimeError(expr.field, "Attempt to index a non-table value");
+    }
+    @Override
+    public Object visitTableExpr(Expr.Table expr) {
+        LuaTable table = new LuaTable();
+        
+        for (Expr.Field field : expr.fields) {
+            Object key;
+            if (field.key != null) {
+                key = evaluate(field.key);
+            } else {
+                // For array-style entries without explicit keys
+                key = (double)(table.arrayPart.size() + 1);
+            }
+            
+            Object value = evaluate(field.value);
+            table.set(key, value);
+        }
+        
+        return table;
     }
 }

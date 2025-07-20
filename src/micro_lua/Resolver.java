@@ -122,7 +122,29 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
         if (stmt.elseBranch != null) resolve(stmt.elseBranch);
         return null;
     }
+    
+    @Override
+    public Void visitTableExpr(Expr.Table expr) {
+        for (Expr.Field field : expr.fields) {
+            if (field.key != null) {
+                resolve(field.key);
+            }
+            resolve(field.value);
+        }
+        return null;
+    }
+    @Override
+    public Void visitTableIndexExpr(Expr.TableIndex expr) {
+        resolve(expr.table);
+        resolve(expr.index);
+        return null;
+    }
 
+    @Override
+    public Void visitTableFieldExpr(Expr.TableField expr) {
+        resolve(expr.table);
+        return null;
+    }
     @Override
     public Void visitReturnStmt(Stmt.Return stmt) {
         if (currentFunction == FunctionType.NONE) {
