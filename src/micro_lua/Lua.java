@@ -40,7 +40,7 @@ public class Lua {
         while(true) {
             System.out.print("> ");
             String line = reader.readLine();
-            if (line == null) break;
+            if (line == null || line.isEmpty()) break;
             
             run(line);
             
