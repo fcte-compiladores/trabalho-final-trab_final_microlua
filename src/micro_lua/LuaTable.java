@@ -20,23 +20,23 @@ public class LuaTable {
             }
         }
         
-        // Verifica os elementos
+        // Verifica os elementos diretamente
         if (elements.containsKey(key)) {
-            Object value = elements.get(key);
-            if (value == this && key.equals("__index")) {
-                return this;
-            }
-            return value;
+            return elements.get(key);
         }
         
         // Verifica o metatable
         if (metatable != null) {
+            // Verifica __index diretamente
             Object handler = metatable.get("__index");
             if (handler != null) {
                 if (handler instanceof LuaCallable) {
                     return ((LuaCallable) handler).call(null, Arrays.asList(this, key));
                 } else if (handler instanceof LuaTable) {
                     return ((LuaTable) handler).get(key);
+                } else {
+                    // Retorna o valor simples (como "teste")
+                    return handler;
                 }
             }
         }

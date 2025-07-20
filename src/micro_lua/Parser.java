@@ -411,10 +411,37 @@ public class Parser {
             return new Expr.Field(new Expr.Literal(name.lexeme), value);
         }
         
+        if (peek().type == FUNCTION) {
+            Expr value = anonymousFunction();
+            return new Expr.Field(null, value);
+        }
+        
         Expr value = expression();
         return new Expr.Field(null, value);
     }
 
+    private Expr anonymousFunction() {
+        Token functionToken = consume(FUNCTION, "Expect 'function' keyword.");
+        consume(LEFT_PAREN, "Expect '(' after 'function'.");
+        
+        List<Token> params = new ArrayList<>();
+        if (!check(RIGHT_PAREN)) {
+            do {
+                if (params.size() >= 255) {
+                    error(peek(), "Can't have more than 255 parameters.");
+                }
+                params.add(consume(IDENTIFIER, "Expect parameter name."));
+            } while (match(COMMA));
+        }
+        consume(RIGHT_PAREN, "Expect ')' after parameters.");
+        
+        List<Stmt> body = block("function");
+        return new Expr.Literal(new Stmt.Function(
+            new Token(TokenType.IDENTIFIER, "", null, functionToken.line),
+            params,
+            body
+        ));
+    }
     private boolean checkNext(TokenType type) {
         if (isAtEnd()) return false;
         if (current + 1 >= tokens.size()) return false;

@@ -537,7 +537,15 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 key = (double)(table.arrayPart.size() + 1);
             }
             
-            Object value = evaluate(field.value);
+            Object value;
+            if (field.value instanceof Expr.Literal && 
+                ((Expr.Literal)field.value).value instanceof Stmt.Function) {
+                Stmt.Function func = (Stmt.Function)((Expr.Literal)field.value).value;
+                value = new LuaFunction(func, environment);
+            } else {
+                value = evaluate(field.value);
+            }
+            
             table.set(key, value);
         }
         
