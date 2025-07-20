@@ -32,7 +32,13 @@ public class Environment {
     }
 
     public void assign(Token name, Object value) {
-        if (values.containsKey(name.lexeme)) {
+        
+    	if (!values.containsKey(name.lexeme) && enclosing != null) {
+            enclosing.assign(name, value);
+        } else {
+            values.put(name.lexeme, value);
+        }
+    	if (values.containsKey(name.lexeme)) {
             values.put(name.lexeme, value);
             return;
         }

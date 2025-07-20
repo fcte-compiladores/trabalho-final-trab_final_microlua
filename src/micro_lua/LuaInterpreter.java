@@ -24,7 +24,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
         });
         
-        
         globals.define("clock", new LuaCallable() {
             @Override
             public int arity() { return 0; }
@@ -107,37 +106,34 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             }
         });
 
-        LuaTable tableLib = new LuaTable();
-        tableLib.set("insert", new LuaCallable() {
-            @Override
-            public int arity() { return 2; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
-                if (!(arguments.get(0) instanceof LuaTable)) {
-                    throw new RuntimeError(null, "First argument must be a table");
+        globals.define("getmetatable", new LuaCallable() {
+            @Override public int arity() { return 1; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                Object arg = arguments.get(0);
+                if (arg instanceof LuaTable) {
+                    return ((LuaTable) arg).getMetatable();
                 }
-                LuaTable table = (LuaTable) arguments.get(0);
-                table.set(table.elements.size() + 1, arguments.get(1));
                 return null;
             }
         });
         
-        tableLib.set("remove", new LuaCallable() {
-            @Override
-            public int arity() { return 1; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+        globals.define("setmetatable", new LuaCallable() {
+            @Override public int arity() { return 2; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
                 if (!(arguments.get(0) instanceof LuaTable)) {
-                    throw new RuntimeError(null, "First argument must be a table");
+                    throw new RuntimeError(null, "setmetatable: first argument must be a table");
                 }
                 LuaTable table = (LuaTable) arguments.get(0);
-                return table.elements.remove(table.elements.size());
+                LuaTable mt = null;
+                if (arguments.get(1) instanceof LuaTable) {
+                    mt = (LuaTable) arguments.get(1);
+                } else if (arguments.get(1) != null) {
+                    throw new RuntimeError(null, "setmetatable: second argument must be a table or nil");
+                }
+                table.setMetatable(mt);
+                return table;
             }
         });
-        
-        globals.define("table", tableLib);
     }
 
     void interpret(List<Stmt> statements) {
@@ -185,8 +181,34 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         }
     }
 
+    private Object getMetamethod(Object obj, String metamethod) {
+        if (obj instanceof LuaTable) {
+            LuaTable table = (LuaTable) obj;
+            LuaTable mt = table.getMetatable();
+            if (mt != null) {
+                return mt.get(metamethod);
+            }
+        }
+        return null;
+    }
+
+    private Object callMetamethod(Object a, Object b, String metamethod) {
+        Object mm = getMetamethod(a, metamethod);
+        if (mm == null) {
+            mm = getMetamethod(b, metamethod);
+        }
+        
+        if (mm instanceof LuaCallable) {
+            return ((LuaCallable) mm).call(this, Arrays.asList(a, b));
+        }
+        return null;
+    }
 
     private String tableToString(LuaTable table) {
+        Object tostring = getMetamethod(table, "__tostring");
+        if (tostring instanceof LuaCallable) {
+            return stringify(((LuaCallable) tostring).call(this, Arrays.asList(table)));
+        }
         return table.toString();
     }
 
@@ -207,6 +229,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         }
         return object.toString();
     }
+
     private boolean isTruthy(Object object) {
         if (object == null) return false;
         if (object instanceof Boolean) return (boolean)object;
@@ -353,21 +376,33 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             case BANG_EQUAL: return !isEqual(left, right);
             case EQUAL_EQUAL: return isEqual(left, right);
             case GREATER:
+                Object gt = callMetamethod(left, right, "__gt");
+                if (gt != null) return gt;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left > (double)right;
             case GREATER_EQUAL:
+                Object ge = callMetamethod(left, right, "__ge");
+                if (ge != null) return ge;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left >= (double)right;
             case LESS:
+                Object lt = callMetamethod(left, right, "__lt");
+                if (lt != null) return lt;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left < (double)right;
             case LESS_EQUAL:
+                Object le = callMetamethod(left, right, "__le");
+                if (le != null) return le;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left <= (double)right;
             case MINUS:
+                Object sub = callMetamethod(left, right, "__sub");
+                if (sub != null) return sub;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left - (double)right;
             case PLUS:
+                Object add = callMetamethod(left, right, "__add");
+                if (add != null) return add;
                 if (left instanceof Double && right instanceof Double) {
                     return (double)left + (double)right;
                 }
@@ -376,15 +411,23 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 }
                 throw new RuntimeError(expr.operator, "Operands must be two numbers or two strings.");
             case SLASH:
+                Object div = callMetamethod(left, right, "__div");
+                if (div != null) return div;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left / (double)right;
             case STAR:
+                Object mul = callMetamethod(left, right, "__mul");
+                if (mul != null) return mul;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left * (double)right;
             case PERCENT:
+                Object mod = callMetamethod(left, right, "__mod");
+                if (mod != null) return mod;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left % (double)right;
             case DOT_DOT:
+                Object concat = callMetamethod(left, right, "__concat");
+                if (concat != null) return concat;
                 return stringify(left) + stringify(right);
             default: 
                 return null;
@@ -438,9 +481,14 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
     @Override
     public Object visitUnaryExpr(Expr.Unary expr) {
         Object right = evaluate(expr.right);
+        
         switch (expr.operator.type) {
             case NOT: return !isTruthy(right);
             case MINUS:
+                Object unm = getMetamethod(right, "__unm");
+                if (unm instanceof LuaCallable) {
+                    return ((LuaCallable) unm).call(this, Arrays.asList(right));
+                }
                 checkNumberOperand(expr.operator, right);
                 return -(double)right;
             default:
@@ -452,7 +500,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
     public Object visitVariableExpr(Expr.Variable expr) {
         return lookUpVariable(expr.name, expr);
     }
-
 
     @Override
     public Object visitTableIndexExpr(Expr.TableIndex expr) {
@@ -482,6 +529,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         
         throw new RuntimeError(expr.field, "Attempt to index a non-table value");
     }
+
     @Override
     public Object visitTableExpr(Expr.Table expr) {
         LuaTable table = new LuaTable();
@@ -491,7 +539,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             if (field.key != null) {
                 key = evaluate(field.key);
             } else {
-                // For array-style entries without explicit keys
                 key = (double)(table.arrayPart.size() + 1);
             }
             

@@ -23,21 +23,13 @@ public class Parser {
     }
 
     private Stmt declaration() {
-        try {
-            if (match(LOCAL)) {
-                if (match(FUNCTION)) {
-                    return localFunction();
-                }
-                return localDeclaration();
-            }
-            if (match(FUNCTION)) return function();
-            return statement();
-        } catch (ParseError error) {
-            synchronize();
-            return null;
+        if (match(LOCAL)) {
+            if (match(FUNCTION)) return localFunction();
+            return localDeclaration();
         }
+        if (match(FUNCTION)) return function();
+        return statement(); 
     }
-
     private Stmt.Function function() {
         Token name = consume(IDENTIFIER, "Expect function name.");
         consume(LEFT_PAREN, "Expect '(' after function name.");

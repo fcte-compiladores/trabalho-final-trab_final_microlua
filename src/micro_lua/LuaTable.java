@@ -2,9 +2,9 @@ package micro_lua;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Arrays;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class LuaTable {
     public final Map<Object, Object> elements = new HashMap<>();
@@ -12,7 +12,6 @@ public class LuaTable {
     private LuaTable metatable = null;
 
     public Object get(Object key) {
-        // Primeiro verifica se é um índice numérico válido para a parte array
         if (key instanceof Double) {
             int index = ((Double) key).intValue();
             if (index >= 1 && index <= arrayPart.size()) {
@@ -20,18 +19,22 @@ public class LuaTable {
             }
         }
         
-        // Depois verifica no hash map
         if (elements.containsKey(key)) {
-            return elements.get(key);
+            Object value = elements.get(key);
+            if (value == this && key.equals("__index")) {
+                return this;
+            }
+            return value;
         }
         
-        // Finalmente verifica metatable
-        if (metatable != null && metatable.get("__index") != null) {
+        if (metatable != null) {
             Object handler = metatable.get("__index");
-            if (handler instanceof LuaCallable) {
-                return ((LuaCallable) handler).call(null, Arrays.asList(this, key));
-            } else if (handler instanceof LuaTable) {
-                return ((LuaTable) handler).get(key);
+            if (handler != null) {
+                if (handler instanceof LuaCallable) {
+                    return ((LuaCallable) handler).call(null, Arrays.asList(this, key));
+                } else if (handler instanceof LuaTable) {
+                    return ((LuaTable) handler).get(key);
+                }
             }
         }
         
@@ -39,7 +42,6 @@ public class LuaTable {
     }
 
     public void set(Object key, Object value) {
-        // Se for um índice numérico sequencial, adiciona à parte array
         if (key instanceof Double) {
             int index = ((Double) key).intValue();
             if (index == arrayPart.size() + 1) {
@@ -51,8 +53,21 @@ public class LuaTable {
             }
         }
         
-        // Caso contrário, adiciona ao hash map
+        if (value == this && key instanceof String && ((String)key).equals("__index")) {
+            elements.put(key, value);
+            return;
+        }
+        
         elements.put(key, value);
+        
+        if (metatable != null && elements.containsKey("__newindex")) {
+            Object handler = elements.get("__newindex");
+            if (handler instanceof LuaCallable) {
+                ((LuaCallable) handler).call(null, Arrays.asList(this, key, value));
+            } else if (handler instanceof LuaTable) {
+                ((LuaTable) handler).set(key, value);
+            }
+        }
     }
 
     public void setMetatable(LuaTable mt) {
@@ -65,16 +80,19 @@ public class LuaTable {
 
     @Override
     public String toString() {
+        if (metatable != null && metatable.get("__tostring") instanceof LuaCallable) {
+            LuaCallable tostring = (LuaCallable) metatable.get("__tostring");
+            return (String) tostring.call(null, Arrays.asList(this));
+        }
+        
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         
-        // Parte array
         for (int i = 0; i < arrayPart.size(); i++) {
             if (i > 0) sb.append(", ");
             sb.append(stringify(arrayPart.get(i)));
         }
         
-        // Parte hash
         boolean first = arrayPart.isEmpty();
         for (Map.Entry<Object, Object> entry : elements.entrySet()) {
             if (!first) sb.append(", ");
