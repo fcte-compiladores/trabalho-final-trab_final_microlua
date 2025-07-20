@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Compilar e executar projeto Java",
+			"command": "javac -d bin src/micro_lua/*.java && java -cp bin micro_lua.Lua",
+			"group": "build",
+			"problemMatcher": [
+				"$javac"
+			],
+			"args": []
+		}
+	]
+}
