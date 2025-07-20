@@ -12,54 +12,34 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
     private Environment environment = globals;
     private final Map<Expr, Integer> locals = new HashMap<>();
 
-    LuaInterpreter() {
+    public LuaInterpreter() {
+
         globals.define("print", new LuaCallable() {
-            @Override
-            public int arity() { return 1; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+            @Override public int arity() { return 1; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
                 System.out.println(stringify(arguments.get(0)));
                 return null;
             }
         });
-        
+
         globals.define("clock", new LuaCallable() {
-            @Override
-            public int arity() { return 0; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+            @Override public int arity() { return 0; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
                 return (double)System.currentTimeMillis() / 1000.0;
             }
         });
-        
-        globals.define("str", new LuaCallable() {
-            @Override
-            public int arity() { return 1; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
-                return stringify(arguments.get(0));
-            }
-        });
-        
-        globals.define("num", new LuaCallable() {
-            @Override
-            public int arity() { return 1; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+
+        globals.define("type", new LuaCallable() {
+            @Override public int arity() { return 1; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
                 Object arg = arguments.get(0);
-                if (arg instanceof Double) return arg;
-                if (arg instanceof String) {
-                    try {
-                        return Double.parseDouble((String) arg);
-                    } catch (NumberFormatException e) {
-                        throw new RuntimeError(null, "Cannot convert '" + arg + "' to number.");
-                    }
-                }
-                throw new RuntimeError(null, "Cannot convert to number.");
+                if (arg == null) return "nil";
+                if (arg instanceof Boolean) return "boolean";
+                if (arg instanceof Double) return "number";
+                if (arg instanceof String) return "string";
+                if (arg instanceof LuaCallable) return "function";
+                if (arg instanceof LuaTable) return "table";
+                return "unknown";
             }
         });
 
@@ -75,7 +55,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                     return null;
                 }
             });
-            
+
             set("remove", new LuaCallable() {
                 @Override public int arity() { return 1; }
                 @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
@@ -88,23 +68,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 }
             });
         }});
-        
-        globals.define("type", new LuaCallable() {
-            @Override
-            public int arity() { return 1; }
-            
-            @Override
-            public Object call(LuaInterpreter interpreter, List<Object> arguments) {
-                Object arg = arguments.get(0);
-                if (arg == null) return "nil";
-                if (arg instanceof Boolean) return "boolean";
-                if (arg instanceof Double) return "number";
-                if (arg instanceof String) return "string";
-                if (arg instanceof LuaCallable) return "function";
-                if (arg instanceof LuaTable) return "table";
-                return "unknown";
-            }
-        });
 
         globals.define("getmetatable", new LuaCallable() {
             @Override public int arity() { return 1; }
@@ -116,7 +79,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 return null;
             }
         });
-        
+
         globals.define("setmetatable", new LuaCallable() {
             @Override public int arity() { return 2; }
             @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
@@ -132,6 +95,45 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 }
                 table.setMetatable(mt);
                 return table;
+            }
+        });
+
+        globals.define("rawget", new LuaCallable() {
+            @Override public int arity() { return 2; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                if (!(arguments.get(0) instanceof LuaTable)) {
+                    throw new RuntimeError(null, "bad argument #1 to 'rawget' (table expected)");
+                }
+                return ((LuaTable) arguments.get(0)).get(arguments.get(1));
+            }
+        });
+
+        globals.define("rawset", new LuaCallable() {
+            @Override public int arity() { return 3; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                if (!(arguments.get(0) instanceof LuaTable)) {
+                    throw new RuntimeError(null, "bad argument #1 to 'rawset' (table expected)");
+                }
+                ((LuaTable) arguments.get(0)).set(arguments.get(1), arguments.get(2));
+                return arguments.get(0);
+            }
+        });
+
+        globals.define("pairs", new LuaCallable() {
+            @Override public int arity() { return 1; }
+            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+                if (!(arguments.get(0) instanceof LuaTable)) {
+                    throw new RuntimeError(null, "bad argument #1 to 'pairs' (table expected)");
+                }
+                LuaTable table = (LuaTable) arguments.get(0);
+                return new LuaFunction(new Stmt.Function(
+                    new Token(TokenType.IDENTIFIER, "pairs_iterator", null, 0),
+                    new ArrayList<>(),
+                    Arrays.asList(new Stmt.Return(
+                        new Token(TokenType.RETURN, "return", null, 0),
+                        new Expr.Literal(table)
+                    ))
+                ), globals);
             }
         });
     }
@@ -188,18 +190,6 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             if (mt != null) {
                 return mt.get(metamethod);
             }
-        }
-        return null;
-    }
-
-    private Object callMetamethod(Object a, Object b, String metamethod) {
-        Object mm = getMetamethod(a, metamethod);
-        if (mm == null) {
-            mm = getMetamethod(b, metamethod);
-        }
-        
-        if (mm instanceof LuaCallable) {
-            return ((LuaCallable) mm).call(this, Arrays.asList(a, b));
         }
         return null;
     }
@@ -425,12 +415,17 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
                 if (mod != null) return mod;
                 checkNumberOperands(expr.operator, left, right);
                 return (double)left % (double)right;
+            case CARET:
+                Object pow = callMetamethod(left, right, "__pow");
+                if (pow != null) return pow;
+                checkNumberOperands(expr.operator, left, right);
+                return Math.pow((double)left, (double)right);
             case DOT_DOT:
                 Object concat = callMetamethod(left, right, "__concat");
                 if (concat != null) return concat;
                 return stringify(left) + stringify(right);
-            default: 
-                return null;
+            default:
+                throw new RuntimeError(expr.operator, "Unknown binary operator.");
         }
     }
 
@@ -548,4 +543,23 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         
         return table;
     }
+    private Object handleMetamethod(Object a, Object b, String metamethod) {
+        Object mm = getMetamethod(a, metamethod);
+        if (mm == null) {
+            mm = getMetamethod(b, metamethod);
+            if (mm == null) return null;
+        }
+        
+        if (mm instanceof LuaCallable) {
+            return ((LuaCallable) mm).call(this, Arrays.asList(a, b));
+        }
+        return null;
+    }
+
+    private Object callMetamethod(Object a, Object b, String metamethod) {
+        Object result = handleMetamethod(a, b, metamethod);
+        if (result != null) return result;
+        throw new RuntimeError(null, "attempt to perform arithmetic on a table value");
+    }
+    
 }

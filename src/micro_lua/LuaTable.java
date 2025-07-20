@@ -12,6 +12,7 @@ public class LuaTable {
     private LuaTable metatable = null;
 
     public Object get(Object key) {
+        // Primeiro verifica a parte array
         if (key instanceof Double) {
             int index = ((Double) key).intValue();
             if (index >= 1 && index <= arrayPart.size()) {
@@ -19,6 +20,7 @@ public class LuaTable {
             }
         }
         
+        // Verifica os elementos
         if (elements.containsKey(key)) {
             Object value = elements.get(key);
             if (value == this && key.equals("__index")) {
@@ -27,6 +29,7 @@ public class LuaTable {
             return value;
         }
         
+        // Verifica o metatable
         if (metatable != null) {
             Object handler = metatable.get("__index");
             if (handler != null) {
@@ -42,7 +45,14 @@ public class LuaTable {
     }
 
     public void set(Object key, Object value) {
-        if (key instanceof Double) {
+        // Verifica se é uma operação rawset
+        boolean isRawSet = false;
+        if (metatable != null && elements.containsKey("__rawset")) {
+            isRawSet = true;
+        }
+        
+        // Parte array
+        if (key instanceof Double && !isRawSet) {
             int index = ((Double) key).intValue();
             if (index == arrayPart.size() + 1) {
                 arrayPart.add(value);
@@ -53,21 +63,20 @@ public class LuaTable {
             }
         }
         
-        if (value == this && key instanceof String && ((String)key).equals("__index")) {
-            elements.put(key, value);
-            return;
-        }
-        
-        elements.put(key, value);
-        
-        if (metatable != null && elements.containsKey("__newindex")) {
+        // Verifica __newindex
+        if (metatable != null && elements.containsKey("__newindex") && !isRawSet) {
             Object handler = elements.get("__newindex");
             if (handler instanceof LuaCallable) {
                 ((LuaCallable) handler).call(null, Arrays.asList(this, key, value));
+                return;
             } else if (handler instanceof LuaTable) {
                 ((LuaTable) handler).set(key, value);
+                return;
             }
         }
+        
+        // Operação normal
+        elements.put(key, value);
     }
 
     public void setMetatable(LuaTable mt) {
@@ -76,6 +85,16 @@ public class LuaTable {
 
     public LuaTable getMetatable() {
         return metatable;
+    }
+
+    public int length() {
+        if (metatable != null && metatable.get("__len") instanceof LuaCallable) {
+            Object result = ((LuaCallable) metatable.get("__len")).call(null, Arrays.asList(this));
+            if (result instanceof Double) {
+                return ((Double) result).intValue();
+            }
+        }
+        return arrayPart.size();
     }
 
     @Override
@@ -88,11 +107,13 @@ public class LuaTable {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
         
+        // Parte array
         for (int i = 0; i < arrayPart.size(); i++) {
             if (i > 0) sb.append(", ");
             sb.append(stringify(arrayPart.get(i)));
         }
         
+        // Parte hash
         boolean first = arrayPart.isEmpty();
         for (Map.Entry<Object, Object> entry : elements.entrySet()) {
             if (!first) sb.append(", ");
