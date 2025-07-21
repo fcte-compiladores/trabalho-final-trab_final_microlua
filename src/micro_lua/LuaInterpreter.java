@@ -188,7 +188,7 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
             LuaTable table = (LuaTable) obj;
             LuaTable mt = table.getMetatable();
             if (mt != null) {
-                return mt.get(metamethod);
+                return mt.get(this,metamethod);
             }
         }
         return null;
@@ -506,12 +506,8 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         Object index = evaluate(expr.index);
         
         if (table instanceof LuaTable) {
-            Object value = ((LuaTable) table).get(index);
-            if (value == null) {
-                throw new RuntimeError(expr.bracket, 
-                    "Undefined index '" + stringify(index) + "' in table");
-            }
-            return value;
+            // Passar o interpretador atual para o get
+            return ((LuaTable) table).get(this, index);
         }
         
         throw new RuntimeError(expr.bracket, 
@@ -523,55 +519,40 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         Object table = evaluate(expr.table);
         
         if (table instanceof LuaTable) {
-            return ((LuaTable) table).get(expr.field.lexeme);
+            // Passar o interpretador atual para o get
+            return ((LuaTable) table).get(this, expr.field.lexeme);
         }
         
         throw new RuntimeError(expr.field, "Attempt to index a non-table value");
     }
-
     @Override
     public Object visitTableExpr(Expr.Table expr) {
         LuaTable table = new LuaTable();
         
         for (Expr.Field field : expr.fields) {
-            Object key;
+            Object key = null;
             if (field.key != null) {
                 key = evaluate(field.key);
             } else {
-                key = (double)(table.arrayPart.size() + 1);
+                // Chave implícita (array)
+                key = (double) (table.arrayPart.size() + 1);
             }
             
-            Object value;
-            if (field.value instanceof Expr.Literal && 
-                ((Expr.Literal)field.value).value instanceof Stmt.Function) {
-                Stmt.Function func = (Stmt.Function)((Expr.Literal)field.value).value;
-                value = new LuaFunction(func, environment);
-            } else {
-                value = evaluate(field.value);
-            }
-            
+            Object value = evaluate(field.value);
             table.set(key, value);
         }
         
         return table;
     }
-    private Object handleMetamethod(Object a, Object b, String metamethod) {
+    private Object callMetamethod(Object a, Object b, String metamethod) {
         Object mm = getMetamethod(a, metamethod);
         if (mm == null) {
             mm = getMetamethod(b, metamethod);
-            if (mm == null) return null;
         }
-        
         if (mm instanceof LuaCallable) {
             return ((LuaCallable) mm).call(this, Arrays.asList(a, b));
         }
         return null;
-    }
-
-    private Object callMetamethod(Object a, Object b, String metamethod) {
-        Object result = handleMetamethod(a, b, metamethod);
-        if (result != null) return result;
-        throw new RuntimeError(null, "attempt to perform arithmetic on a table value");
     }
     
 }

@@ -10,9 +10,12 @@ public class LuaTable {
     public final Map<Object, Object> elements = new HashMap<>();
     public final List<Object> arrayPart = new ArrayList<>();
     private LuaTable metatable = null;
-
+    
     public Object get(Object key) {
-        // Primeiro verifica a parte array
+        return get(null, key);
+    }
+    public Object get(LuaInterpreter interpreter, Object key) {
+        // Verificar parte array primeiro
         if (key instanceof Double) {
             int index = ((Double) key).intValue();
             if (index >= 1 && index <= arrayPart.size()) {
@@ -20,23 +23,20 @@ public class LuaTable {
             }
         }
         
-        // Verifica os elementos diretamente
+        // Verificar elementos diretos
         if (elements.containsKey(key)) {
             return elements.get(key);
         }
         
-        // Verifica o metatable
+        // Verificar metatable
         if (metatable != null) {
-            // Verifica __index diretamente
-            Object handler = metatable.get("__index");
+            Object handler = metatable.get(interpreter, "__index");  // Passar interpretador aqui
             if (handler != null) {
                 if (handler instanceof LuaCallable) {
-                    return ((LuaCallable) handler).call(null, Arrays.asList(this, key));
+                    // Passar interpretador na chamada
+                    return ((LuaCallable) handler).call(interpreter, Arrays.asList(this, key));
                 } else if (handler instanceof LuaTable) {
-                    return ((LuaTable) handler).get(key);
-                } else {
-                    // Retorna o valor simples (como "teste")
-                    return handler;
+                    return ((LuaTable) handler).get(interpreter, key);  // Passar interpretador
                 }
             }
         }
@@ -45,11 +45,8 @@ public class LuaTable {
     }
 
     public void set(Object key, Object value) {
-        // Verifica se é uma operação rawset
+        // Verificar se é uma operação rawset
         boolean isRawSet = false;
-        if (metatable != null && elements.containsKey("__rawset")) {
-            isRawSet = true;
-        }
         
         // Parte array
         if (key instanceof Double && !isRawSet) {
@@ -63,9 +60,9 @@ public class LuaTable {
             }
         }
         
-        // Verifica __newindex
-        if (metatable != null && elements.containsKey("__newindex") && !isRawSet) {
-            Object handler = elements.get("__newindex");
+        // Verificar __newindex
+        if (metatable != null && metatable.get("__newindex") != null && !isRawSet) {
+            Object handler = metatable.get("__newindex");
             if (handler instanceof LuaCallable) {
                 ((LuaCallable) handler).call(null, Arrays.asList(this, key, value));
                 return;

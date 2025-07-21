@@ -225,8 +225,12 @@ public class Resolver implements Expr.Visitor<Void>, Stmt.Visitor<Void> {
 
     @Override
     public Void visitLiteralExpr(Expr.Literal expr) {
+        if (expr.value instanceof Stmt.Function) {
+            resolveFunction((Stmt.Function) expr.value, FunctionType.FUNCTION);
+        }
         return null;
     }
+
 
     @Override
     public Void visitGroupingExpr(Expr.Grouping expr) {

@@ -429,38 +429,16 @@ public class Parser {
         }
         
         if (check(IDENTIFIER) && checkNext(EQUAL)) {
-            Token name = consume(IDENTIFIER, "Expect field name.");
-            consume(EQUAL, "Expect '=' after field name.");
+            Token name = advance(); // Consome identificador
+            advance(); // Consome '='
             Expr value = expression();
             return new Expr.Field(new Expr.Literal(name.lexeme), value);
         }
         
         Expr value = expression();
-        return new Expr.Field(null, value);
+        return new Expr.Field(null, value); // Chave implícita
     }
-
-    private Expr anonymousFunction() {
-        Token functionToken = consume(FUNCTION, "Expect 'function' keyword.");
-        consume(LEFT_PAREN, "Expect '(' after 'function'.");
-        
-        List<Token> params = new ArrayList<>();
-        if (!check(RIGHT_PAREN)) {
-            do {
-                if (params.size() >= 255) {
-                    error(peek(), "Can't have more than 255 parameters.");
-                }
-                params.add(consume(IDENTIFIER, "Expect parameter name."));
-            } while (match(COMMA));
-        }
-        consume(RIGHT_PAREN, "Expect ')' after parameters.");
-        
-        List<Stmt> body = block("function");
-        return new Expr.Literal(new Stmt.Function(
-            new Token(TokenType.IDENTIFIER, "", null, functionToken.line),
-            params,
-            body
-        ));
-    }
+    
     private boolean checkNext(TokenType type) {
         if (isAtEnd()) return false;
         if (current + 1 >= tokens.size()) return false;
@@ -509,33 +487,11 @@ public class Parser {
         return new ParseError();
     }
 
-    private void synchronize() {
-        advance();
+   
+    private static class ParseError extends RuntimeException {
 
-        while (!isAtEnd()) {
-            if (previous().type == SEMICOLON) return;
-
-            switch (peek().type) {
-                case FUNCTION:
-                case LOCAL:
-                case DO:
-                case IF:
-                case WHILE:
-                case REPEAT:
-                case FOR:
-                case RETURN:
-                case BREAK:
-                case END:
-                case ELSE:
-                case ELSEIF:
-                case UNTIL:
-                case THEN:
-                    return;
-            }
-
-            advance();
-        }
-    }
-
-    private static class ParseError extends RuntimeException {}
+		/**
+		 * 
+		 */
+		private static final long serialVersionUID = 1L;}
 }
