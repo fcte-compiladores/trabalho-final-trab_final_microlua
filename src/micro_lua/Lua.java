@@ -106,43 +106,66 @@ public class Lua {
     }
 
     private static boolean isStatementComplete(String source) {
+        // Remove espaços em branco e verifica se está vazio
+        String trimmed = source.trim();
+        if (trimmed.isEmpty()) {
+            return false;
+        }
 
-        String[] blockStarters = {"if", "function", "for", "while", "repeat"};
-        for (String starter : blockStarters) {
-            if (source.contains(starter) && !source.contains("end")) {
+        // Verifica se é um comando especial (começa com :)
+        if (trimmed.startsWith(":")) {
+            return true;
+        }
+
+        // Verifica blocos básicos (if/function/for/while/repeat sem end)
+        String[] blockKeywords = {"if", "function", "for", "while", "repeat"};
+        for (String keyword : blockKeywords) {
+            if (containsWord(trimmed, keyword) && !containsWord(trimmed, "end")) {
                 return false;
             }
         }
-        
-        if (source.contains("then") && !source.contains("end")) {
+
+        // Verifica estruturas específicas
+        if (containsWord(trimmed, "then") && !containsWord(trimmed, "end")) {
             return false;
         }
-        if (source.contains("do") && !source.contains("end")) {
+        if (containsWord(trimmed, "do") && !containsWord(trimmed, "end")) {
             return false;
         }
-        
-        if (countOccurrences(source, '(') > countOccurrences(source, ')')) {
+
+        // Verifica parênteses/colchetes/chaves desbalanceados
+        if (countUnbalanced(trimmed, '(', ')') > 0 ||
+            countUnbalanced(trimmed, '[', ']') > 0 ||
+            countUnbalanced(trimmed, '{', '}') > 0) {
             return false;
         }
-        if (countOccurrences(source, '[') > countOccurrences(source, ']')) {
-            return false;
+
+        // Verifica se termina com ponto-e-vírgula (opcional)
+        if (!trimmed.endsWith(";")) {
+            // Se não for um bloco e não terminar com ;, considera completo
+            return true;
         }
-        if (countOccurrences(source, '{') > countOccurrences(source, '}')) {
-            return false;
-        }
-        
+
         return true;
     }
 
-    private static int countOccurrences(String str, char c) {
-        int count = 0;
-        for (int i = 0; i < str.length(); i++) {
-            if (str.charAt(i) == c) {
-                count++;
-            }
-        }
-        return count;
+    // Verifica se uma palavra aparece como token independente
+    private static boolean containsWord(String str, String word) {
+        return str.matches(".*\\b" + word + "\\b.*");
     }
+
+    // Conta pares desbalanceados
+    private static int countUnbalanced(String str, char open, char close) {
+        int openCount = 0;
+        int closeCount = 0;
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (c == open) openCount++;
+            if (c == close) closeCount++;
+        }
+        return openCount - closeCount;
+    }
+
 
     private static void printHelp() {
         System.out.println("Comandos disponíveis:");

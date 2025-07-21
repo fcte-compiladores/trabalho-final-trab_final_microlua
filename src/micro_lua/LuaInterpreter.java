@@ -14,13 +14,38 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
 
     public LuaInterpreter() {
 
-        globals.define("print", new LuaCallable() {
-            @Override public int arity() { return 1; }
-            @Override public Object call(LuaInterpreter interpreter, List<Object> arguments) {
-                System.out.println(stringify(arguments.get(0)));
-                return null;
-            }
-        });
+    	globals.define("print", new LuaCallable() {
+    	    @Override 
+    	    public int arity() { 
+    	        return -1; 
+    	    }
+    	    
+    	    @Override 
+    	    public Object call(LuaInterpreter interpreter, List<Object> arguments) {
+    	        StringBuilder output = new StringBuilder();
+    	        for (int i = 0; i < arguments.size(); i++) {
+    	            if (i > 0) output.append("\t");
+    	            
+    	            Object arg = arguments.get(i);
+    	            if (arg == null) {
+    	                output.append("nil");
+    	            } else if (arg instanceof String) {
+    	                output.append((String)arg); 
+    	            } else if (arg instanceof Double) {
+    	                double num = (Double)arg;
+    	                if (num == (int)num) {
+    	                    output.append((int)num);
+    	                } else {
+    	                    output.append(num); 
+    	                }
+    	            } else {
+    	                output.append(interpreter.stringify(arg)); // Outros tipos
+    	            }
+    	        }
+    	        System.out.println(output.toString());
+    	        return null;
+    	    }
+    	});
 
         globals.define("clock", new LuaCallable() {
             @Override public int arity() { return 0; }
@@ -442,8 +467,11 @@ public class LuaInterpreter implements Expr.Visitor<Object>, Stmt.Visitor<Void> 
         }
 
         LuaCallable function = (LuaCallable)callee;
-        if (arguments.size() != function.arity()) {
-            throw new RuntimeError(expr.paren, "Expected " + function.arity() + " arguments but got " + arguments.size() + ".");
+        int arity = function.arity();
+        
+        if (arity >= 0 && arguments.size() != arity) {
+            throw new RuntimeError(expr.paren, 
+                "Expected " + arity + " arguments but got " + arguments.size() + ".");
         }
 
         return function.call(this, arguments);
