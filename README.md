@@ -24,7 +24,7 @@ O MicroLua é um interpretador para um subconjunto da linguagem Lua, implementad
 
     Funções e escopos locais/globais
 
-    Tabelas com metatabelas básicas
+    Tabelas básicas
 
     Funções nativas: print(), clock(), type(), table.insert(), etc.
 
