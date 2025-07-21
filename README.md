@@ -45,12 +45,9 @@ lua:
   pessoa = {
     nome = "João",
     idade = 30,
-    saudacao = function(self)
-      return "Olá, " .. self.nome
-    end
   }
 
-  print(pessoa:saudacao())
+  print(pessoa.nome)
 
 
 ## Instalação
