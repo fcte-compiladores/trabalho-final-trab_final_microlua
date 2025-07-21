@@ -1,0 +1,12 @@
+
+local t2 = {
+    nome = "Maria",
+    idade = 9
+}
+print(t2.nome, t2.idade)
+
+local t3 = {
+    nome = "Beatrice",
+    idade = 99
+}
+print(t3.nome, t3.idade)

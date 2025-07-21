@@ -1,0 +1,10 @@
+-- Exemplo simples
+print("Olá Mundo!")
+
+-- Exemplo com função
+function soma(a, b)
+  return a + b
+end
+
+resultado = soma(5, 3)
+print("5 + 3 = " .. resultado)

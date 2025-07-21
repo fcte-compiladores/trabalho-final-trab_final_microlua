@@ -1,0 +1,7 @@
+local a = 10
+local b = 3.14
+local c = "texto"
+local d = true
+local e = nil
+
+print(a, b, c, d, e)

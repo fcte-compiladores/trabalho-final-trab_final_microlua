@@ -1,79 +1,153 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/Hppw7Zh2)
-# Trabalho Final
+MicroLua - Interpretador de Lua Simplificado
+Integrantes
 
-## Escopo e organização
+    Davi dos Santos Brito Nobre
+    Matrícula: 211062929
+    turma: 16h
 
-O trabalho é de tema livre dentro do escopo da disciplina de compiladores e
-consiste no desenvolvimento de alguma aplicação na área da disciplina (um
-interpretador para uma linguagem simples, compilador, analisadores de código,
-etc.)
+    João Victor de Carvalho Nobre 
+    Matrícula: 202017423 
+    turma: 16h
 
-O trabalho pode ser feito em grupos de até 4 pessoas.
+    DANIELLE RODRIGUES SILVA
+    Matrícula: 211061574 
+    turma: 16h
 
-## Estrutura
 
-Os trabalhos devem ser entregues na atividade própria no [github-classrrom](...).
-Cada repositório deve ter uma estrutura parecida com a delineada abaixo:
+## Introdução
 
-* **README:** o arquivo README.md na base do repositório deve descrever os
-  detalhes da implementação do código. O README deve ter algumas seções 
-  obrigatórias:
-  - **Título**: nome do projeto
-  - **Integrantes**: lista com os nomes, matrículas e turma de cada integrante.
-  - **Introdução**: deve detalhar o que o projeto implementou, quais foram as
-    estratégias e algoritmos relevantes. Se o projeto implementa uma linguagem
-    não-comum ou um subconjunto de uma linguagem comum, deve conter alguns
-    exemplos de comandos nesta linguagem, descrendo a sua sintaxe e semântica,
-    quando necessário.
-  - **Instalação**: deve detalhar os passos para instalar as dependências e
-    rodar o código do projeto. Pode ser algo simples como *"Rode
-    `uv run lox hello.lox` para executar o interpretador."*, se a linguagem de
-    implementação permitir este tipo de facilidade.
+O MicroLua é um interpretador para um subconjunto da linguagem Lua, implementado em Java. O projeto implementa as principais características da linguagem Lua, incluindo:
 
-    Você pode usar gerenciadores de pacotes específicos de linguagens populares
-    como uv, npm, cargo, etc, containers Docker/Podman, ou `.nix`.
-  - **Exemplos**: o projeto deve conter uma pasta "exemplos" com alguns arquivos
-    na linguagem de programação implementada. Deve conter exemplos com graus
-    variáveis de complexidade. Algo como: hello world, fibonacci, função
-    recursiva, alguma estrutura de dados e para finalizar um algoritmo um pouco
-    mais elaborado como ordenamento de listas, busca binária, etc.
-    
-    Note que isto é apenas um guia da ordem de dificuldade dos problemas.
-    Algumas linguagens sequer permitem a implementação de alguns dos exemplos
-    acima.
-  - **Referências**: descreva as referências que você utilizou para a
-    implementação da linguagem. Faça uma breve descrição do papel de cada
-    referência ou como ela foi usada no projeto. Caso você tenha usado algum 
-    código existente como referência, descreva as suas contribuições originais
-    para o projeto.
-  - **Estrutura do código**: faça uma descrição da estrutura geral do código
-    discutindo os módulos, classes, estruturas de dados ou funções principais. 
-    Explicite onde as etapas tradicionais de compilação (análise léxica, 
-    sintática, semântica, etc) são realizadas, quando relevante.
-  - **Bugs/Limitações/problemas conhecidos**: discuta as limitações do seu
-    projeto e problemas conhecidos e coisas que poderiam ser feitas para
-    melhorá-lo no futuro. Note: considere apenas melhorias incrementais e não
-    melhorias grandes como: "reimplementar tudo em Rust".
-* **Código:** O codigo fonte deve estar presente no repositório principal junto com
-  a declaração das suas dependências. Cada linguagem possui um mecanismo
-  específico para isso, mas seria algo como o arquivo pyproject.toml em Python
-  ou package.json no caso de Javascript.
+    Tipos básicos: nil, boolean, number, string, function, table
 
-## Critérios
+    Estruturas de controle: if, while, repeat, for
 
-Cada trabalho começa com 100% e pode receber penalizações ou bônus de acordo com
-os critérios abaixo:
+    Funções e escopos locais/globais
 
-- Ausência do README: -50%
-- Instruções de instalação não funcionam: até -20%
-- Referências não atribuídas ou falta de referâncias: -10%
-- Código confuso ou mal organizado: até -15%
-- Falta de clareza em apresentar as técnicas e etapas de compilação: -15%
-- Bugs e limitações sérias na implementação: até -25%
-- Escopo reduzido, ou implementação insuficiente: até 25%
-- Uso de código não atribuído/plágio: até -100%
-- Repositório bem estruturado e organizado: até 10%
-- Linguagem com conceitos originais/interessantes: até +15%
-- Testes unitários: até +15%, dependendo da cobertura
+    Tabelas com metatabelas básicas
 
-Após aplicar todos os bônus, a nota é truncada no intervalo 0-100%. 
+    Funções nativas: print(), clock(), type(), table.insert(), etc.
+
+Exemplos de sintaxe
+lua:
+
+
+
+  -- Função Fibonacci
+  function fib(n)
+  if n < 2 then return n end
+  return fib(n-1) + fib(n-2)
+  end
+
+  print(fib(10))
+
+-- Tabelas:
+  pessoa = {
+    nome = "João",
+    idade = 30,
+    saudacao = function(self)
+      return "Olá, " .. self.nome
+    end
+  }
+
+  print(pessoa:saudacao())
+
+
+## Instalação
+
+Pré-requisitos:
+
+    Java JDK 11 ou superior
+
+
+passo 1: clone nosso repo:
+
+git clone https://github.com/seu-usuario/microlua.git
+cd microlua
+
+
+2 - compilar o projeto inteiro:
+javac -d bin src/micro_lua/*.java
+
+passo 3: execute exemplos no interpretador ou no modo interativo:
+
+
+exemplo para uso da pasta exemplos: java -cp bin micro_lua.Lua exemplos/hello.mlua
+
+exemplo do iterativo: java -cp bin micro_lua.Lua
+
+
+## Estrutura do Código
+
+O projeto está organizado nos seguintes componentes principais:
+Análise Léxica
+
+    Scanner.java: Converte código fonte em tokens
+
+    Token.java: Representação dos tokens
+
+    TokenType.java: Enumeração dos tipos de tokens
+
+Análise Sintática
+
+    Parser.java: Constrói a AST (Abstract Syntax Tree) a partir dos tokens
+
+    Expr.java: Representação de expressões
+
+    Stmt.java: Representação de statements
+
+Análise Semântica
+
+    Resolver.java: Resolução de escopos e ligação de variáveis
+
+Execução
+
+    LuaInterpreter.java: Interpreta e executa a AST
+
+    Environment.java: Gerencia ambientes de execução (escopos)
+
+    LuaTable.java: Implementação de tabelas Lua
+
+    LuaFunction.java: Representação de funções
+
+    LuaCallable.java: Interface para funções chamáveis
+
+    Sistema de Tipos e Operações
+
+    LuaTable.java: Implementa tabelas com metatabelas
+
+    Operadores com suporte a metamétodos (__add, __sub, etc.)
+
+Controle de Fluxo
+
+    Break.java, Return.java: Implementam controle de fluxo
+
+    RuntimeError.java: Tratamento de erros em tempo de execução
+
+
+## Referências Bibliográficas e bibliografia
+
+Foi usada duas referências mãe para o desenvolvimento do projeto, além de claro os exercicios e as aulas de compiladores 1, esses sendo: 
+
+Implementação de Lox feita em Rust por Darksecond:
+https://github.com/Darksecond/lox
+Foi usada como base para a estrutura geral do interpretador, incluindo o padrão Visitor para a AST e o sistema de resolução de escopos. Adaptamos a implementação para a sintaxe e semântica específicas de Lua.
+
+Linguagem LUA oficial:
+
+foi referência para o que fariamos e o escopo e semântica (tabelas, comportamentos etc).
+
+Bugs e Limitações Conhecidas
+
+    Metatabelas limitadas: Suporte básico a metamétodos, mas definitivamente não implementamos todos os recursos
+
+    Performance: Não há otimizações para chamadas recursivas
+
+    Coleta de lixo: Não foi feita pelos membros. 
+
+    Biblioteca padrão: Apenas funções básicas disponíveis (foi pensado em seguiur o mesmo escopo do Lox, ou seja o suficiente pra aprendizado)
+
+
+## Exemplos
+
+nossos exemplos estão todos na pasta exemplos, o modo de as utilizar foi descrito na instalação. 
